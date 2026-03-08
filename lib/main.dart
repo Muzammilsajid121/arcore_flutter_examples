@@ -1,122 +1,579 @@
+import 'package:arcore_flutter_plus/arcore_flutter_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math_64.dart' as vector;
+// import 'dart:async';
+// import 'dart:math' as math;
 
-void main() {
-  runApp(const MyApp());
-}
+//--Example 4 to place emojis in the enviornment
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() => runApp(
+  const MaterialApp(debugShowCheckedModeBanner: false, home: AREmojiWorld()),
+);
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class AREmojiWorld extends StatefulWidget {
+  const AREmojiWorld({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<AREmojiWorld> createState() => _AREmojiWorldState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _AREmojiWorldState extends State<AREmojiWorld> {
+  ArCoreController? arCoreController;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  // Default Selected Model
+  String selectedModel = "car.glb";
+
+  final List<Map<String, String>> modelOptions = [
+    {"name": "CAR", "icon": "🚗", "file": "car.glb"},
+    {"name": "CAT", "icon": "🐱", "file": "cat.glb"},
+    {"name": "TOM", "icon": "🐭", "file": "tom.glb"},
+    {"name": "circle", "icon": "🟡", "file": "SHAPE_CIRCLE"},
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('AR Multi-Model Placer'),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Stack(
+        children: [
+          ArCoreView(
+            onArCoreViewCreated: _onArCoreViewCreated,
+            enableTapRecognizer: true,
+            enablePlaneRenderer: true,
+            planeColor: Colors.red,
+          ),
+
+          // Selection UI
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: modelOptions.length,
+                itemBuilder: (context, index) {
+                  bool isSelected =
+                      selectedModel == modelOptions[index]['file'];
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedModel = modelOptions[index]['file']!;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.only(right: 15),
+                      width: 80,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.blueAccent
+                            : Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          const BoxShadow(color: Colors.black26, blurRadius: 5),
+                        ],
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 3)
+                            : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            modelOptions[index]['icon']!,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            modelOptions[index]['name']!,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
+
+  void _onArCoreViewCreated(ArCoreController controller) {
+    arCoreController = controller;
+    arCoreController?.onPlaneTap = _handleOnPlaneTap;
+  }
+
+  // 2. Updated Tap Handler
+  void _handleOnPlaneTap(List<ArCoreHitTestResult> hits) {
+    if (hits.isEmpty) return;
+    final hit = hits.first;
+    final String nodeName = "node_${DateTime.now().millisecondsSinceEpoch}";
+
+    if (selectedModel == "SHAPE_CIRCLE") {
+      // Agar circle selected hai toh Package ki apni shape use karein
+      final material = ArCoreMaterial(color: Colors.yellow, metallic: 1.0);
+      final sphere = ArCoreCylinder(
+        //try different shapes
+        materials: [material],
+        // radius: 0.1, // 10cm radius
+        // height: 0.1,
+      );
+      final node = ArCoreNode(
+        name: nodeName,
+        shape: sphere,
+        position: hit.pose.translation,
+        rotation: hit.pose.rotation,
+      );
+      arCoreController?.addArCoreNode(node);
+    } else {
+      // Warna .glb model load karein
+      final node = ArCoreReferenceNode(
+        name: nodeName,
+        object3DFileName: selectedModel,
+        position: hit.pose.translation,
+        rotation: hit.pose.rotation,
+        scale: vector.Vector3(0.2, 0.2, 0.2),
+      );
+      arCoreController?.addArCoreNode(node);
+    }
+  }
+
+  @override
+  void dispose() {
+    arCoreController?.dispose();
+    super.dispose();
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Example 3 to calculate distance b/w 2 marks on floor 
+// void main() {
+//   runApp(const MaterialApp(home: ARDistanceMeasurer()));
+// }
+
+// class ARDistanceMeasurer extends StatefulWidget {
+//   const ARDistanceMeasurer({super.key});
+
+//   @override
+//   State<ARDistanceMeasurer> createState() => _ARDistanceMeasurerState();
+// }
+
+// class _ARDistanceMeasurerState extends State<ARDistanceMeasurer> {
+//   ArCoreController? arCoreController;
+  
+//   // Do points ko store karne ke liye
+//   ArCoreNode? startNode;
+//   ArCoreNode? endNode;
+//   String distanceText = "Tap on floor to place marks";
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('AR Distance Meter')),
+//       body: Stack(
+//         children: [
+//           ArCoreView(
+//             onArCoreViewCreated: _onArCoreViewCreated,
+//             enableTapRecognizer: true,
+//           enablePlaneRenderer: true, // ZAROORI: Isse dots nazar ayenge
+//           // debugOptions: ArCoreDebugOptions(showFeaturePoints: true), // Tracking dekhne ke li
+//           ),
+//           // Distance display karne ke liye UI
+//           Positioned(
+//             top: 50,
+//             left: 20,
+//             child: Container(
+//               padding: const EdgeInsets.all(12),
+//               color: Colors.black54,
+//               child: Text(
+//                 distanceText,
+//                 style: const TextStyle(color: Colors.white, fontSize: 18),
+//               ),
+//             ),
+//           ),
+//           Positioned(
+//             bottom: 30,
+//             left: 20,
+//             child: FloatingActionButton(
+//               onPressed: _resetMarks,
+//               child: const Icon(Icons.refresh),
+//             ),
+//           )
+//         ],
+//       ),
+//     );
+//   }
+
+//   void _onArCoreViewCreated(ArCoreController controller) {
+//     arCoreController = controller;
+//     // Plane detection configuration
+//     arCoreController?.onPlaneTap = _handleOnPlaneTap;
+
+//   }
+
+//   void _handleOnPlaneTap(List<ArCoreHitTestResult> hits) {
+//     if (hits.isEmpty) return;
+//     final hit = hits.first;
+
+//     if (startNode == null) {
+//       // Pehla mark lagayein
+//       startNode = _createMark(hit.pose.translation, Colors.red);
+//       arCoreController?.addArCoreNode(startNode!);
+//       setState(() {
+//         distanceText = "First mark placed. Tap for second mark.";
+//       });
+//     } else if (endNode == null) {
+//       // Doosra mark lagayein
+//       endNode = _createMark(hit.pose.translation, Colors.blue);
+//       arCoreController?.addArCoreNode(endNode!);
+      
+//       // Distance calculate karein
+//       _calculateDistance();
+//     }
+//   }
+
+//   ArCoreNode _createMark(vector.Vector3 position, Color color) {
+//     final material = ArCoreMaterial(color: color, metallic: 1.0);
+//     final sphere = ArCoreSphere(materials: [material], radius: 0.03); // Chota sa mark
+//     return ArCoreNode(
+//       shape: sphere,
+//       position: position,
+//     );
+//   }
+
+
+//   void _calculateDistance() {
+//   if (startNode == null || endNode == null) return;
+
+//   // .value lagana zaroori hai kyunki position ek ValueNotifier hai
+//   final startPos = startNode!.position!.value; 
+//   final endPos = endNode!.position!.value;
+
+//   // Distance Formula implementation
+//   double dx = endPos.x - startPos.x;
+//   double dy = endPos.y - startPos.y;
+//   double dz = endPos.z - startPos.z;
+
+//   // math.sqrt use karein agar math as prefix imported hai
+//   double distance = math.sqrt(dx * dx + dy * dy + dz * dz);
+  
+//   setState(() {
+//     distanceText = "Distance: ${(distance * 100).toStringAsFixed(2)} cm";
+//   });
+// }
+
+//   void _resetMarks() {
+//     if (startNode != null) arCoreController?.removeNode(nodeName: startNode!.name);
+//     if (endNode != null) arCoreController?.removeNode(nodeName: endNode!.name);
+//     startNode = null;
+//     endNode = null;
+//     setState(() {
+//       distanceText = "Marks reset. Tap on floor again.";
+//     });
+//   }
+
+//   @override
+//   void dispose() {
+//     arCoreController?.dispose();
+//     super.dispose();
+//   }
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-- Example 2 of tom rotating in circular motion
+// void main() {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   runApp(const MaterialApp(
+//     debugShowCheckedModeBanner: false, 
+//     home: UniqueMovingTom()
+//   ));
+// }
+
+// class UniqueMovingTom extends StatefulWidget {
+//   const UniqueMovingTom({super.key});
+
+//   @override
+//   State<UniqueMovingTom> createState() => _UniqueMovingTomState();
+// }
+
+// class _UniqueMovingTomState extends State<UniqueMovingTom> {
+//   ArCoreController? arCoreController;
+//   ArCoreNode? tomNode;
+  
+//   // Animation variables
+//   Timer? timer;
+//   double angle = 0.0;
+//   vector.Vector3 centerPosition = vector.Vector3(0, 0, -1.5);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('AR Patrol Tom'),
+//         backgroundColor: Colors.blueAccent,
+//       ),
+//       body: ArCoreView(
+//         onArCoreViewCreated: _onArCoreViewCreated,
+//         enableTapRecognizer: true, // Floor tap enable karne ke liye
+//       ),
+//     );
+//   }
+
+//   void _onArCoreViewCreated(ArCoreController controller) {
+//     arCoreController = controller;
+    
+//     // Jab user floor par tap kare toh Tom wahan move ho jaye
+//     arCoreController?.onPlaneTap = _handleOnPlaneTap;
+    
+//     // Initial Tom add karein
+//     _spawnTom(centerPosition);
+//     _startUniqueAnimation();
+//   }
+
+//   void _handleOnPlaneTap(List<ArCoreHitTestResult> hits) {
+//     final hit = hits.first;
+//     // Tap wali jagah ko naya center bana dein
+//     centerPosition = hit.pose.translation;
+//     _spawnTom(centerPosition);
+//   }
+
+//   void _spawnTom(vector.Vector3 position) {
+//     // Agar pehle se node hai toh remove karein
+//     if (tomNode != null) {
+//       arCoreController?.removeNode(nodeName: "tom_patrol");
+//     }
+
+//     tomNode = ArCoreReferenceNode(
+//       name: "tom_patrol",
+//       object3DFileName: "tom.glb", // Make sure file is in android/assets
+//       position: position,
+//       scale: vector.Vector3(0.5, 0.5, 0.5),
+//     );
+
+//     arCoreController?.addArCoreNode(tomNode!);
+//   }
+
+//   // Unique Circular Animation Logic
+//   void _startUniqueAnimation() {
+//     timer?.cancel();
+//     timer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
+//       if (tomNode == null || arCoreController == null) return;
+
+//       angle += 0.05; // Speed of rotation
+//       double radius = 0.6; // Kitni door tak ghoomega
+
+//       // Calculate new X and Z for circular movement
+//       double newX = centerPosition.x + radius * math.cos(angle);
+//       double newZ = centerPosition.z + radius * math.sin(angle);
+      
+//       vector.Vector3 newPos = vector.Vector3(newX, centerPosition.y, newZ);
+
+//       // Unique Feature: Moving with Rotation 
+//       // Tom ka face movement ki taraf karne ke liye y-axis rotation
+//       double rotationY = -angle + (math.pi / 2);
+
+//       // Update Node (Re-adding for smooth position in this specific plugin)
+//       _updateNodePosition(newPos, rotationY);
+//     });
+//   }
+
+//   void _updateNodePosition(vector.Vector3 pos, double rotationY) {
+//     arCoreController?.removeNode(nodeName: "tom_patrol");
+    
+//     tomNode = ArCoreReferenceNode(
+//       name: "tom_patrol",
+//       object3DFileName: "tom.glb",
+//       position: pos,
+//       // Quaternion use hota hai rotation ke liye
+//       rotation: vector.Vector4(0, 1, 0, rotationY), 
+//       scale: vector.Vector3(0.5, 0.5, 0.5),
+//     );
+
+//     arCoreController?.addArCoreNode(tomNode!);
+//   }
+
+//   @override
+//   void dispose() {
+//     timer?.cancel();
+//     arCoreController?.dispose();
+//     super.dispose();
+//   }
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// //-- Example 1 of tom jerry showing through glb model type
+
+// void main() {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   runApp( MovingTom());
+// }
+
+
+
+// class MovingTom extends StatefulWidget {
+//   const MovingTom({super.key});
+
+//   @override
+//   State<MovingTom> createState() => _MovingTomState();
+// }
+
+// class _MovingTomState extends State<MovingTom> {
+//   late ArCoreController arCoreController;
+//   ArCoreNode? carNode;
+//   double tomZ = -1.5;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       home: Scaffold(
+//         appBar: AppBar(title: const Text('AR Moving Tom')),
+//         body: ArCoreView(
+//           onArCoreViewCreated: _onArCoreViewCreated,
+//         ),
+//       ),
+//     );
+//   }
+
+//   void _onArCoreViewCreated(ArCoreController controller) {
+//     arCoreController = controller;
+
+//     _addTom(tomZ);
+
+//     _startTomAnimation();
+//   }
+
+
+// void _addTom(double zPosition) async {
+//   // Remove previous node if exists
+//   if (carNode != null) {
+//     arCoreController.removeNode(nodeName: "car");
+//   }
+
+//   carNode = ArCoreReferenceNode(
+//     // Just the filename as it appears in android/app/src/main/assets
+//     object3DFileName: "tom.glb", 
+//     name: "car",
+//     position: vector.Vector3(0, 0, zPosition),
+//     scale: vector.Vector3(0.3, 0.3, 0.3),
+//   );
+
+//   arCoreController.addArCoreNode(carNode!);
+// }
+
+
+//   void _startTomAnimation() {
+//     const duration = Duration(milliseconds: 50);
+//     Timer.periodic(duration, (timer) {
+//       tomZ -= 0.02;
+
+//       if (tomZ < -3.0) tomZ = -1.5;
+
+//       // Re-add node at new position
+//       _addTom(tomZ);
+//     });
+//   }
+
+//   @override
+//   void dispose() {
+//     arCoreController.dispose();
+//     super.dispose();
+//   }
+// }
+
