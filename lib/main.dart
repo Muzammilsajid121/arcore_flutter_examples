@@ -2,16 +2,12 @@ import 'dart:math' as math;
 import 'package:arcore_flutter_plus/arcore_flutter_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' as vector;
-// import 'dart:async';
-// import 'dart:math' as math;
-
-//--Example 4 to place emojis in the enviornment
 
 void main() => runApp(
   const MaterialApp(
     debugShowCheckedModeBanner: false,
-    // home: AREmojiWorld()    ////-- uncomment to run this example
-    home: ARDistanceMeasurer(),
+    home: AREmojiWorld(), ////-- uncomment to run this example
+    // home: ARDistanceMeasurer(),
   ),
 );
 
@@ -27,7 +23,7 @@ class ARDistanceMeasurer extends StatefulWidget {
 class _ARDistanceMeasurerState extends State<ARDistanceMeasurer> {
   ArCoreController? arCoreController;
 
-  // Do points ko store karne ke liye
+  // To store 2 points
   ArCoreNode? startNode;
   ArCoreNode? endNode;
   String distanceText = "Tap on floor to place marks";
@@ -43,8 +39,8 @@ class _ARDistanceMeasurerState extends State<ARDistanceMeasurer> {
             enableTapRecognizer: true,
             enablePlaneRenderer: true, // this will show dots
             planeColor: Colors.red,
-            // debugOptions: ArCoreDebugOptions(showFeaturePoints: true), // Tracking dekhne ke li
           ),
+
           // Distance display karne ke liye UI
           Positioned(
             top: 50,
@@ -82,28 +78,25 @@ class _ARDistanceMeasurerState extends State<ARDistanceMeasurer> {
     final hit = hits.first;
 
     if (startNode == null) {
-      // Pehla mark lagayein
+      // 1st mark
       startNode = _createMark(hit.pose.translation, Colors.red);
       arCoreController?.addArCoreNode(startNode!);
       setState(() {
         distanceText = "First mark placed. Tap for second mark.";
       });
     } else if (endNode == null) {
-      // Doosra mark lagayein
+      // 2nd mark
       endNode = _createMark(hit.pose.translation, Colors.blue);
       arCoreController?.addArCoreNode(endNode!);
 
-      // Distance calculate karein
+      // Distance calculate
       _calculateDistance();
     }
   }
 
   ArCoreNode _createMark(vector.Vector3 position, Color color) {
     final material = ArCoreMaterial(color: color, metallic: 1.0);
-    final sphere = ArCoreSphere(
-      materials: [material],
-      radius: 0.03,
-    ); // Chota sa mark
+    final sphere = ArCoreSphere(materials: [material], radius: 0.03);
     return ArCoreNode(shape: sphere, position: position);
   }
 
@@ -119,7 +112,7 @@ class _ARDistanceMeasurerState extends State<ARDistanceMeasurer> {
     double dy = endPos.y - startPos.y;
     double dz = endPos.z - startPos.z;
 
-    // math.sqrt use karein agar math as prefix imported hai
+    // math.sqrt use  as prefix imported hai
     double distance = math.sqrt(dx * dx + dy * dy + dz * dz);
 
     setState(() {
